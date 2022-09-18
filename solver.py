@@ -3,20 +3,14 @@
 # Yet another solver program for QilingLab (x86-64).
 #
 # Run sovler:
-#   QILING_HOME=./qiling python3 solver.py qilinglab-x86_64
+#   PYTHONPATH=/path/to/qiling python3 solver.py qilinglab-x86_64 /path/to/rootfs/x8664_linux
 #
+# Linux x86-64 rootfs can be found at examples/rootfs/x8664_linux, under qiling directory
 # Get QilingLab executable from: https://www.shielder.it/blog/2021/07/qilinglab-release/
 
-import os
-import sys
+import argparse
 from typing import Callable, Iterable, Mapping, Tuple
 
-QILING_HOME = os.environ.get('QILING_HOME')
-
-if QILING_HOME is None:
-	raise KeyError('Please set QILING_HOME environment variable to Qiling directory')
-
-sys.path.append(QILING_HOME)
 from qiling import Qiling
 from qiling.const import QL_INTERCEPT, QL_VERBOSE
 from qiling.os.const import *
@@ -272,11 +266,13 @@ def one_time_hook(ql: Qiling, callback: Callable, address: int):
 	hsetup = ql.hook_address(__setup, address)
 
 if __name__ == '__main__':
-	if len(sys.argv) < 2:
-		print(f'Please specify the path to qilinglab binary', file=sys.stderr)
-		sys.exit(1)
+	parser = argparse.ArgumentParser(description='Yet another solver program for QilingLab (x86-64).')
+	parser.add_argument('labfile', help='path to qiling-lab binary')
+	parser.add_argument('rootfs', help='path to x86-64 linux rootfs')
 
-	ql = Qiling([sys.argv[1]], f'{QILING_HOME}/examples/rootfs/x8664_linux', verbose=QL_VERBOSE.OFF)
+	args = parser.parse_args()
+
+	ql = Qiling([args.labfile], args.rootfs, verbose=QL_VERBOSE.OFF)
 
 	# symbols offsets were collected using:
 	#   rabin2 -s qilinglab-x86_64 | grep "challenge" | awk '{print $2, $7}' | sort
