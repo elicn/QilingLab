@@ -19,8 +19,8 @@ from qiling.os.mapper import QlFsMappedObject
 
 
 def solve01(ql: Qiling):
-    """The target address is not mapped; map the page that contains
-    it first and then set the required value.
+    """The target address is not mapped; map the page that contains it first
+    and then set the required value.
     """
 
     ptr = 0x1337
@@ -34,13 +34,12 @@ def solve01(ql: Qiling):
 
 
 def solve02(ql: Qiling):
-    """The uname system call writes several consecutive entries to memory,
-    each of which is 65 bytes in size. Only the 1st and 4th entries are
-    compared, where the 1st one should be identical to the original system
-    call result.
+    """The uname system call writes several consecutive entries to memory, each
+    of which is 65 bytes in size. Only the 1st and 4th entries are compared,
+    where the 1st one should be identical to the original system call result.
 
-    We hook the system call on-exit and patch the 4th entry so it would
-    match the required string.
+    We hook the system call on-exit and patch the 4th entry so it would match
+    the required string.
     """
 
     def __uname(ql: Qiling, buf: int, retval: int):
@@ -50,15 +49,15 @@ def solve02(ql: Qiling):
 
 
 def solve03(ql: Qiling):
-    """The code pulls 32 bytes from /dev/urandom and then pulls an additional one.
-    It checks that the last byte is not repeated in the first chunk and proceeds to
-    ask getrandom to generate 32 random bytes.
+    """The code pulls 32 bytes from /dev/urandom and then pulls an additional
+    one. It checks that the last byte is not repeated in the first chunk and
+    proceeds to ask getrandom to generate 32 random bytes.
 
-    The first 32 bytes pulled from urandom are expected to be identical to the ones
-    received from getrandom.
+    The first 32 bytes pulled from urandom are expected to be identical to the
+    ones received from getrandom.
 
-    To make sure the "random" numbers do not repeat themselves, we simply use a running
-    index.
+    To make sure the "random" numbers do not repeat themselves, we simply use a
+    running index.
     """
 
     context = {'randbytes': bytes(range(64))}
@@ -175,14 +174,15 @@ def solve08(ql: Qiling):
         ql.mem.write(ptr2, b'\x01')
         hret.remove()
 
-    # hook the nop instruction before the function epilogue to remain in the same stack frame
+    # hook the nop instruction before the function epilogue to remain in the
+    # same stack frame
     hret = ql.hook_address(__patch_struct, ql.arch.regs.arch_pc + 0x71)
 
 
 def solve09(ql: Qiling):
-    """A mixed-case string needs to remain intact after applying a 'tolower' on
-    all of its characters. That requires nullifying tolower and making it return
-    the exact same character every time.
+    """A mixed-case string needs to remain intact after applying a 'tolower'
+    on all of its characters. That requires nullifying tolower and making it
+    return the exact same character every time.
     """
 
     def __tolower(ql: Qiling):
