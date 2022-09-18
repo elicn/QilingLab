@@ -165,7 +165,7 @@ def solve08(ql: Qiling):
         # var_8h -> {
         #   0x00:	void*	ptr1	# -> b'Random data'
         #   0x08:	int32	val1	# = 0x0000539
-        #   0x0c:	int128	val2	# = *((int32*) 0x00001a98)
+        #   0x0c:	int32	val2	# = *((int32*) 0x00001a98)
         #   0x10:	void*	ptr2	# -> arg1
         # }
 
@@ -267,8 +267,8 @@ def one_time_hook(ql: Qiling, callback: Callable, address: int):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Yet another solver program for QilingLab')
-    parser.add_argument('labfile', help='path to qiling-lab binary')
-    parser.add_argument('rootfs', help='path to x86-64 linux rootfs')
+    parser.add_argument('labfile', help='Path to qiling-lab binary')
+    parser.add_argument('rootfs', help='Path to x86-64 linux rootfs')
 
     args = parser.parse_args()
 
