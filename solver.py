@@ -9,6 +9,7 @@
 # Get QilingLab executable from: https://www.shielder.it/blog/2021/07/qilinglab-release/
 
 import argparse
+import io
 from typing import Callable, Iterable, Mapping, Tuple
 
 from qiling import Qiling
@@ -60,7 +61,7 @@ def solve03(ql: Qiling):
     running index.
     """
 
-    context = {'randbytes': bytes(range(64))}
+    bytespool = bytes(range(64))
 
     def __getrandom(ql: Qiling):
         params = ql.os.resolve_fcall_params({
@@ -72,7 +73,7 @@ def solve03(ql: Qiling):
         buf = params['buf']
         buflen = params['buflen']
 
-        randbytes = context['randbytes'][:buflen]
+        randbytes = bytespool[:buflen]
         ql.mem.write(buf, randbytes)
 
         ql.os.fcall.cc.setReturnValue(len(randbytes))
@@ -84,7 +85,7 @@ def solve03(ql: Qiling):
             self.pos = 0
 
         def read(self, size: int) -> bytes:
-            randbytes = context['randbytes'][self.pos:self.pos + size]
+            randbytes = bytespool[self.pos:self.pos + size]
             self.pos += size
 
             return randbytes
@@ -203,23 +204,7 @@ def solve10(ql: Qiling):
     The file object might be further extended to support more argv strings.
     """
 
-    class MyProcCmdline(QlFsMappedObject):
-        def __init__(self):
-            super().__init__()
-
-            self.content = b'qilinglab'
-            self.pos = 0
-
-        def read(self, size: int) -> bytes:
-            content = self.content[self.pos:self.pos + size]
-            self.pos += size
-
-            return content
-
-        def close(self):
-            return 0
-
-    ql.add_fs_mapper("/proc/self/cmdline", MyProcCmdline())
+    ql.add_fs_mapper("/proc/self/cmdline", io.BytesIO(b'qilinglab'))
 
 
 def solve11(ql: Qiling):
