@@ -31,11 +31,11 @@ def solve01(ql: Qiling):
 	ptr = 0x1337
 	val = 1337
 
-	aligned_addr = ptr & ~(0x1000 - 1)
-	aligned_size = ql.mem.align(ql.pointersize, 0x1000)
+	aligned_addr = ql.mem.align(ptr)
+	aligned_size = ql.mem.align_up(ql.arch.pointersize)
 
 	ql.mem.map(aligned_addr, aligned_size)
-	ql.mem.write(ptr, ql.pack(val))
+	ql.mem.write_ptr(ptr, val)
 
 def solve02(ql: Qiling):
 	"""The uname system call writes several consecutive entries to memory,
@@ -47,10 +47,10 @@ def solve02(ql: Qiling):
 	match the required string.
 	"""
 
-	def __uname(ql: Qiling, address: int, *args, **kwargs):
-		ql.mem.write(address + 3 * 65, b'ChallengeStart')
+	def __uname(ql: Qiling, buf: int, retval: int):
+		ql.mem.write(buf + 3 * 65, b'ChallengeStart')
 
-	ql.set_syscall(SYSCALL_NR.uname, __uname, QL_INTERCEPT.EXIT)
+	ql.os.set_syscall(SYSCALL_NR.uname, __uname, QL_INTERCEPT.EXIT)
 
 def solve03(ql: Qiling):
 	"""The code pulls 32 bytes from /dev/urandom and then pulls an additional one.
@@ -98,7 +98,7 @@ def solve03(ql: Qiling):
 
 	ql.add_fs_mapper("/dev/urandom", MyUrandom())
 
-	ql.set_api('getrandom', __getrandom, QL_INTERCEPT.CALL)
+	ql.os.set_api('getrandom', __getrandom, QL_INTERCEPT.CALL)
 
 def solve04(ql: Qiling):
 	"""To enter the loop var_8h should be set to any value higher than 0.
@@ -112,11 +112,11 @@ def solve04(ql: Qiling):
 	"""
 
 	def __patch_var_8h(ql: Qiling, access: int, addr: int, size: int, value: int):
-		ql.mem.write(addr, ql.pack32(1))
+		ql.mem.write_ptr(addr, 1, 4)
 
 		hret.remove()
 
-	hret = ql.hook_mem_read(__patch_var_8h, begin=ql.reg.rsp - 16)
+	hret = ql.hook_mem_read(__patch_var_8h, begin=ql.arch.regs.rsp - 16)
 
 def solve05(ql: Qiling):
 	"""All random generated values are expected to be 0.
@@ -126,7 +126,7 @@ def solve05(ql: Qiling):
 	def __rand(ql: Qiling):
 		ql.os.fcall.cc.setReturnValue(0)
 
-	ql.set_api('rand', __rand, QL_INTERCEPT.CALL)
+	ql.os.set_api('rand', __rand, QL_INTERCEPT.CALL)
 
 def solve06(ql: Qiling):
 	"""This one quite resembles challenge4 as it requires the same practice of
@@ -136,11 +136,11 @@ def solve06(ql: Qiling):
 	"""
 
 	def __patch_var_5h(ql: Qiling, access: int, addr: int, size: int, value: int):
-		ql.mem.write(addr, ql.pack32(0))
+		ql.mem.write_ptr(addr, 0, 4)
 
 		hret.remove()
 
-	hret = ql.hook_mem_read(__patch_var_5h, begin=ql.reg.rsp - 5)
+	hret = ql.hook_mem_read(__patch_var_5h, begin=ql.arch.regs.rsp - 5)
 
 def solve07(ql: Qiling):
 	"""Avoid sleeping by hooking the lib function and make it return immediately.
@@ -149,7 +149,7 @@ def solve07(ql: Qiling):
 	def __sleep(ql: Qiling):
 		pass
 
-	ql.set_api('sleep', __sleep, QL_INTERCEPT.CALL)
+	ql.os.set_api('sleep', __sleep, QL_INTERCEPT.CALL)
 
 def solve08(ql: Qiling):
 	"""A meaningless structure is initialized by the challenge code, and
@@ -167,14 +167,14 @@ def solve08(ql: Qiling):
 		#	0x10:	void*	ptr2	# -> arg1
 		# }
 
-		var_8h = ql.mem.read_ptr(ql.reg.rbp - 0x08)
+		var_8h = ql.mem.read_ptr(ql.arch.regs.rbp - 0x08)
 		ptr2 = ql.mem.read_ptr(var_8h + 0x10)
 
 		ql.mem.write(ptr2, b'\x01')
 		hret.remove()
 
 	# hook the nop instruction before the function epilogue to remain in the same stack frame
-	hret = ql.hook_address(__patch_struct, ql.reg.arch_pc + 0x71)
+	hret = ql.hook_address(__patch_struct, ql.arch.regs.arch_pc + 0x71)
 
 def solve09(ql: Qiling):
 	"""A mixed-case string needs to remain intact after applying a 'tolower' on
@@ -189,7 +189,7 @@ def solve09(ql: Qiling):
 
 		ql.os.fcall.cc.setReturnValue(params['c'])
 
-	ql.set_api('tolower', __tolower, QL_INTERCEPT.CALL)
+	ql.os.set_api('tolower', __tolower, QL_INTERCEPT.CALL)
 
 def solve10(ql: Qiling):
 	"""The challenge code reads from '/proc/self/cmdline' and expects to find
@@ -224,18 +224,18 @@ def solve11(ql: Qiling):
 
 	def __patch_cpuid(ql: Qiling):
 		# modify only if we have the correct cpuid leaf
-		if ql.reg.eax == 0x40000000:
+		if ql.arch.regs.eax == 0x40000000:
 			payload = b'QilingLab'.ljust(12)
 
-			ql.reg.ebx = ql.unpack32(payload[0:4])	# 0x696c6951
-			ql.reg.ecx = ql.unpack32(payload[4:8])	# 0x614c676e
-			ql.reg.edx = ql.unpack32(payload[8:12])	# 0x20202062
+			ql.arch.regs.ebx = ql.unpack32(payload[0:4])	# 0x696c6951
+			ql.arch.regs.ecx = ql.unpack32(payload[4:8])	# 0x614c676e
+			ql.arch.regs.edx = ql.unpack32(payload[8:12])	# 0x20202062
 
 			# skip the cpuid instruction
-			ql.reg.arch_pc += 2
+			ql.arch.regs.arch_pc += 2
 
 	# the cpuid instruction is located at offset 0x36 from function entry
-	ql.hook_address(__patch_cpuid, ql.reg.arch_pc + 0x36)
+	ql.hook_address(__patch_cpuid, ql.arch.regs.arch_pc + 0x36)
 
 def map_symbols(ql: Qiling, symsmap: Mapping[int, str]):
 	"""Allow more intuitive hooking by using symbols names, and support
